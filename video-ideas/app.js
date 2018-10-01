@@ -1,5 +1,6 @@
 const express = require("express");
 const exphbs = require("express-handlebars");
+const methodOverride = require("method-override");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 
@@ -35,6 +36,9 @@ app.set("view engine", "handlebars");
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// Method Override
+app.use(methodOverride("_method"));
+
 // Index Route
 app.get("/", (req, res) => {
   const title = "Welcome";
@@ -46,21 +50,43 @@ app.get("/about", (req, res) => {
   res.render("about");
 });
 
+// Idea index page
+app.get("/ideas", (req, res) => {
+  // fetch ideas from db and pass them as an argument to the front end
+  Idea.find()
+    .sort({ date: "desc" })
+    .then(ideas => {
+      res.render("ideas/index", { ideas });
+    });
+});
+
 // Add idea
 app.get("/ideas/add", (req, res) => {
   res.render("ideas/add");
+});
+
+// Edit idea
+app.get("/ideas/edit/:id", (req, res) => {
+  Idea.findOne({
+    _id: req.params.id
+  }).then(idea => {
+    res.render("ideas/edit", { idea });
+  });
 });
 
 // Process Idea
 app.post("/ideas", (req, res) => {
   let errors = [];
 
+  // no title added
   if (!req.body.title) {
     errors.push({ text: "Please add a title" });
   }
+  // no details added
   if (!req.body.details) {
     errors.push({ text: "Please add some details" });
   }
+  // if there are errors
   if (errors.length > 0) {
     res.render("ideas/add", {
       errors,
@@ -78,12 +104,23 @@ app.post("/ideas", (req, res) => {
   }
 });
 
-app.get("/name", (req, res) => {
-  res.json({
-    name: "Emilio Jeldes",
-    age: 28,
-    career: "Software Engineer"
+// Edit form process
+app.put("/ideas/:id", (req, res) => {
+  Idea.findOne({
+    _id: req.params.id
+  }).then(idea => {
+    // new values
+    idea.title = req.body.title;
+    idea.details = req.body.details;
+    idea.save().then(idea => {
+      res.redirect("/ideas");
+    });
   });
+});
+
+// Delete ideas
+app.delete("/ideas/:id", (req, res) => {
+  Idea.remove({ _id: req.params.id }).then(() => res.redirect("/ideas"));
 });
 
 const port = 5000;
